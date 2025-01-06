@@ -83,7 +83,7 @@ export class GatewayService {
     }
   }
 
-  async loginUser(creds: { username: string; password: string }) {
+  async loginUser(creds: { email: string; password: string }) {
     try {
       const serviceUrl = this.getServiceUrl('USER-MICROSERVICE');
       const response = await axios.post(`${serviceUrl}/users/login`, creds);
@@ -94,5 +94,32 @@ export class GatewayService {
         error.response?.status || 500
       );
     }
+  }
+  async findApiKeyUser(apiKey: string) {
+    try {
+      const serviceUrl = this.getServiceUrl('USER-MICROSERVICE');
+      const response = await axios.get(
+        `${serviceUrl}/users/find-by-api-key/${apiKey}`
+      );
+      return response.data;
+    } catch (error) {
+      throw new HttpException(
+        error.response?.data || 'User microservice error',
+        error.response?.status || 500
+      );
+    }
+  }
+  async updateUserUsage(
+    userId: string,
+    usageCounters: Record<string, number>,
+    permissionMatrix: any
+  ) {
+    const serviceUrl = this.getServiceUrl('USER-MICROSERVICE');
+    const response = await axios.put(
+      `${serviceUrl}/users/update-usage/${userId}`,
+      { usageCounters, permissionMatrix }
+    );
+
+    return response.data;
   }
 }
