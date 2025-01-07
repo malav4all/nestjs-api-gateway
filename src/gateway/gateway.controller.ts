@@ -3,12 +3,12 @@ import {
   Controller,
   Get,
   Post,
-  Request,
+  // Request,
   UseGuards,
 } from '@nestjs/common';
 import { GatewayService } from './gateway.service';
 import { ApiKeyGuard } from '../auth/api-key.guard';
-import { JwtManualGuard } from 'src/auth/jwt-manual.guard';
+// import { JwtManualGuard } from 'src/auth/jwt-manual.guard';
 
 @Controller('gateway')
 export class GatewayController {
@@ -25,12 +25,23 @@ export class GatewayController {
     return this.gatewayService.loginUser(creds);
   }
 
-  @Get('protected')
-  @UseGuards(JwtManualGuard)
-  getProtectedResource(@Request() req) {
-    return {
-      message: 'Protected data via API Gateway',
-      userPayload: req.user,
-    };
+  @UseGuards(ApiKeyGuard)
+  @Get('listProducts')
+  async getAllProducts() {
+    return this.gatewayService.getAllProducts();
+  }
+
+  @UseGuards(ApiKeyGuard)
+  @Post('createProduct')
+  async createProduct(
+    @Body()
+    creds: {
+      name: string;
+      price: number;
+      description: string;
+      isActive: boolean;
+    }
+  ) {
+    return this.gatewayService.createProduct(creds);
   }
 }

@@ -44,7 +44,7 @@ export class GatewayService {
   /**
    * Pick one instance of the given service from Eureka
    */
-  private getServiceUrl(serviceName: string): string {
+  public getServiceUrl(serviceName: string): string {
     // Eureka stores app IDs in uppercase
     const appId = serviceName.toUpperCase();
 
@@ -121,5 +121,40 @@ export class GatewayService {
     );
 
     return response.data;
+  }
+
+  async createProduct(creds: {
+    name: string;
+    price: number;
+    description: string;
+    isActive: boolean;
+  }) {
+    try {
+      const serviceUrl = this.getServiceUrl('PRODUCTS-MICROSERVICE');
+      const response = await axios.post(`${serviceUrl}/products`, creds);
+      return response.data;
+    } catch (error) {
+      throw new HttpException(
+        error.response?.data || 'User microservice error',
+        error.response?.status || 500
+      );
+    }
+  }
+
+  async getAllProducts() {
+    try {
+      // If your user microservice is registered as "USER-SERVICE" (for example)
+      const serviceUrl = this.getServiceUrl('PRODUCTS-MICROSERVICE');
+
+      // e.g. calling GET /users
+      const response = await axios.get(`${serviceUrl}/products`);
+      return response.data;
+    } catch (error) {
+      console.error('Error calling user service:', error.message);
+      throw new HttpException(
+        error.response?.data || 'User service error',
+        error.response?.status || 500
+      );
+    }
   }
 }
