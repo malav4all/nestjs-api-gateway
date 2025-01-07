@@ -83,18 +83,6 @@ export class GatewayService {
     }
   }
 
-  async loginUser(creds: { email: string; password: string }) {
-    try {
-      const serviceUrl = this.getServiceUrl('USER-MICROSERVICE');
-      const response = await axios.post(`${serviceUrl}/users/login`, creds);
-      return response.data;
-    } catch (error) {
-      throw new HttpException(
-        error.response?.data || 'User microservice error',
-        error.response?.status || 500
-      );
-    }
-  }
   async findApiKeyUser(apiKey: string) {
     try {
       const serviceUrl = this.getServiceUrl('USER-MICROSERVICE');
@@ -153,6 +141,54 @@ export class GatewayService {
       console.error('Error calling user service:', error.message);
       throw new HttpException(
         error.response?.data || 'User service error',
+        error.response?.status || 500
+      );
+    }
+  }
+
+  async getProductsById(id: string) {
+    try {
+      // If your user microservice is registered as "USER-SERVICE" (for example)
+      const serviceUrl = this.getServiceUrl('PRODUCTS-MICROSERVICE');
+
+      // e.g. calling GET /users
+      const response = await axios.get(`${serviceUrl}/products/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error calling user service:', error.message);
+      throw new HttpException(
+        error.response?.data || 'User service error',
+        error.response?.status || 500
+      );
+    }
+  }
+  async createSsoUser(creds: {
+    name: string;
+    email: string;
+    password: string;
+    company: string;
+    role: string[];
+  }) {
+    try {
+      const serviceUrl = this.getServiceUrl('SSO-USER-MICROSERVICE');
+      const response = await axios.post(`${serviceUrl}/ssousers`, creds);
+      return response.data;
+    } catch (error) {
+      throw new HttpException(
+        error.response?.data || 'User microservice error',
+        error.response?.status || 500
+      );
+    }
+  }
+
+  async ssoUserLogin(creds: { email: string; password: string }) {
+    try {
+      const serviceUrl = this.getServiceUrl('SSO-USER-MICROSERVICE');
+      const response = await axios.post(`${serviceUrl}/ssousers/login`, creds);
+      return response.data;
+    } catch (error) {
+      throw new HttpException(
+        error.response?.data || 'User microservice error',
         error.response?.status || 500
       );
     }

@@ -155,9 +155,28 @@ export class ApiKeyGuard implements CanActivate {
     return 'unknown'; // Return 'unknown' if no resource matches
   }
 
-  // Extract the sub-path for endpoint-specific permissions
   private extractSubPath(fullPath: string): string {
-    const parts = fullPath.split('/').filter(Boolean); // e.g., ["gateway", "listUsers"]
-    return parts.slice(1).join('/') || ''; // e.g., "listUsers"
+    const parts = fullPath.split('/').filter(Boolean); // e.g., ["gateway", "fetchById", "12345"]
+
+    if (parts.length > 1) {
+      const endpoint = parts[1];
+
+      // Define a mapping of dynamic patterns to their normalized keys
+      const dynamicPatterns = [
+        { pattern: /^fetchById$/, normalized: 'fetchById' },
+        { pattern: /^getDetails$/, normalized: 'getDetails' }, // Add more dynamic patterns as needed
+      ];
+
+      // Match the current endpoint against the dynamic patterns
+      const matchedPattern = dynamicPatterns.find((entry) =>
+        endpoint.match(entry.pattern)
+      );
+
+      if (matchedPattern) {
+        return matchedPattern.normalized; // Return the normalized key for the dynamic endpoint
+      }
+    }
+
+    return parts.slice(1).join('/') || ''; // Default behavior for other paths
   }
 }

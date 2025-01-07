@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Post,
   // Request,
   UseGuards,
@@ -20,9 +21,23 @@ export class GatewayController {
     return this.gatewayService.getAllUsers();
   }
 
-  @Post('login')
+  @Post('ssologin')
   async login(@Body() creds: { email: string; password: string }) {
-    return this.gatewayService.loginUser(creds);
+    return this.gatewayService.ssoUserLogin(creds);
+  }
+
+  @Post('createSsoUser')
+  async createSsoUser(
+    @Body()
+    creds: {
+      name: string;
+      email: string;
+      password: string;
+      company: string;
+      role: string[];
+    }
+  ) {
+    return this.gatewayService.createSsoUser(creds);
   }
 
   @UseGuards(ApiKeyGuard)
@@ -43,5 +58,11 @@ export class GatewayController {
     }
   ) {
     return this.gatewayService.createProduct(creds);
+  }
+
+  @UseGuards(ApiKeyGuard)
+  @Get('fetchById/:id')
+  async findOne(@Param('id') id: string) {
+    return this.gatewayService.getProductsById(id);
   }
 }
