@@ -28,12 +28,23 @@ export class ApiKeyGuard implements CanActivate {
     }
 
     // 2. Optional: Check if API key is expired
-    // if (user.apiKeyExpiresAt && user.apiKeyExpiresAt.getTime() < Date.now()) {
-    //   throw new UnauthorizedException('API key has expired');
-    // }
+    if (user.apiKeyExpiresAt) {
+      const expiryDate = new Date(user.apiKeyExpiresAt);
+      const currentDate = new Date();
+
+      console.log(`API Key Expiry: ${expiryDate}`);
+      console.log(`Current Time: ${currentDate}`);
+
+      if (expiryDate.getTime() < currentDate.getTime()) {
+        throw new UnauthorizedException('API key has expired');
+      }
+    }
 
     // 3. Extract the resource from the path (e.g., "users")
-    const resource = this.extractResource(req.path);
+    const resource = this.extractResource(req.path, user.permissionMatrix);
+    if (resource === 'unknown') {
+      throw new ForbiddenException(`No permissions for resource ${req.path}`);
+    }
 
     // 4. Map the HTTP method to a domain-specific action (read/write/update/delete)
     const action = this.mapHttpToAction(req.method);
@@ -61,9 +72,9 @@ export class ApiKeyGuard implements CanActivate {
         );
       }
     }
-    console.log(perm.limit);
+
     // // 7. Enforce usage limits if defined
-    if (perm.limit) {
+    if (perm.limit !== undefined) {
       const usageKey: string = `${resource}.${action}`;
 
       // Ensure usageCounters is initialized
@@ -71,21 +82,18 @@ export class ApiKeyGuard implements CanActivate {
         user.usageCounters = {};
       }
 
+      // Check if the limit is 0 and immediately reject
+      if (perm.limit === 0) {
+        throw new ForbiddenException(
+          `${action} is not allowed for ${resource}`
+        );
+      }
+
       // Increment usage counter
       user.usageCounters[usageKey] = (user.usageCounters[usageKey] || 0) + 1;
 
-      console.log(
-        `Current usage for ${usageKey}:`,
-        user.usageCounters[usageKey]
-      );
-
-      // Decrease the limit dynamically
-      perm.limit -= 1;
-
-      console.log(`Remaining limit for ${action} on ${resource}:`, perm.limit);
-
       // Check if the usage limit is exceeded
-      if (perm.limit < 0) {
+      if (user.usageCounters[usageKey] > perm.limit) {
         throw new ForbiddenException(`${action} limit exceeded on ${resource}`);
       }
 
@@ -123,25 +131,27 @@ export class ApiKeyGuard implements CanActivate {
   }
 
   // Extract the resource name from the path
-  private extractResource(fullPath: string): string {
+  private extractResource(
+    fullPath: string,
+    permissionMatrix: Record<string, any>
+  ): string {
     const parts = fullPath.split('/').filter(Boolean); // e.g., ["gateway", "listUsers"]
+
     if (parts[0] === 'gateway' && parts.length > 1) {
-      // Map sub-paths under "gateway" to specific resources
-      const subPath = parts[1];
-      if (subPath.startsWith('list') || subPath.startsWith('get')) {
-        return 'users'; // Map "listUsers" or "getUser" to "users"
-      }
-      if (subPath.startsWith('create') || subPath.startsWith('add')) {
-        return 'users'; // Map "createUser" or "addUser" to "users"
-      }
-      if (subPath.startsWith('update')) {
-        return 'users'; // Map "updateUser" to "users"
-      }
-      if (subPath.startsWith('delete')) {
-        return 'users'; // Map "deleteUser" to "users"
+      const subPath = parts[1]; // e.g., "listUsers"
+
+      // Dynamically determine the resource from the permission matrix
+      for (const [resource, actions] of Object.entries(permissionMatrix)) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for (const [action, details] of Object.entries(actions) as any) {
+          if (details?.allowedEndpoints?.includes(subPath)) {
+            return resource; // Return the matched resource
+          }
+        }
       }
     }
-    return parts[0]?.toLowerCase() || 'unknown'; // Default to the first segment
+
+    return 'unknown'; // Return 'unknown' if no resource matches
   }
 
   // Extract the sub-path for endpoint-specific permissions
