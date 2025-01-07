@@ -66,13 +66,13 @@ export class GatewayService {
     return `http://${host}:${port}`;
   }
 
-  async getAllUsers() {
+  async getAllClient() {
     try {
       // If your user microservice is registered as "USER-SERVICE" (for example)
-      const serviceUrl = this.getServiceUrl('USER-MICROSERVICE');
+      const serviceUrl = this.getServiceUrl('CLIENT-MICROSERVICE');
 
       // e.g. calling GET /users
-      const response = await axios.get(`${serviceUrl}/users`);
+      const response = await axios.get(`${serviceUrl}/client`);
       return response.data;
     } catch (error) {
       console.error('Error calling user service:', error.message);
@@ -83,11 +83,46 @@ export class GatewayService {
     }
   }
 
+  async createClient(creds: {
+    name: string;
+    email: string;
+    password: string;
+    apiKey: string;
+    apiKeyExpiresAt: any;
+    roles: string[];
+    permissionMatrix: Record<string, any>;
+    usageCounters: Record<string, any>;
+  }) {
+    try {
+      const serviceUrl = this.getServiceUrl('CLIENT-MICROSERVICE');
+      const response = await axios.post(`${serviceUrl}/client`, creds);
+      return response.data;
+    } catch (error) {
+      throw new HttpException(
+        error.response?.data || 'Client microservice error',
+        error.response?.status || 500
+      );
+    }
+  }
+
+  async clientLogin(creds: { email: string; password: string }) {
+    try {
+      const serviceUrl = this.getServiceUrl('CLIENT-MICROSERVICE');
+      const response = await axios.post(`${serviceUrl}/client/login`, creds);
+      return response.data;
+    } catch (error) {
+      throw new HttpException(
+        error.response?.data || 'User microservice error',
+        error.response?.status || 500
+      );
+    }
+  }
+
   async findApiKeyUser(apiKey: string) {
     try {
       const serviceUrl = this.getServiceUrl('USER-MICROSERVICE');
       const response = await axios.get(
-        `${serviceUrl}/users/find-by-api-key/${apiKey}`
+        `${serviceUrl}/client/find-by-api-key/${apiKey}`
       );
       return response.data;
     } catch (error) {
@@ -104,7 +139,7 @@ export class GatewayService {
   ) {
     const serviceUrl = this.getServiceUrl('USER-MICROSERVICE');
     const response = await axios.put(
-      `${serviceUrl}/users/update-usage/${userId}`,
+      `${serviceUrl}/client/update-usage/${userId}`,
       { usageCounters, permissionMatrix }
     );
 

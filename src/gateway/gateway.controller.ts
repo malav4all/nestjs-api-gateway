@@ -9,16 +9,34 @@ import {
 } from '@nestjs/common';
 import { GatewayService } from './gateway.service';
 import { ApiKeyGuard } from '../auth/api-key.guard';
-// import { JwtManualGuard } from 'src/auth/jwt-manual.guard';
+import { JwtManualGuard } from 'src/auth/jwt-manual.guard';
 
 @Controller('gateway')
 export class GatewayController {
   constructor(private readonly gatewayService: GatewayService) {}
 
-  @UseGuards(ApiKeyGuard)
-  @Get('listUsers')
+  @UseGuards(JwtManualGuard)
+  @Get('listClient')
   async getAllUsers() {
-    return this.gatewayService.getAllUsers();
+    return this.gatewayService.getAllClient();
+  }
+
+  @UseGuards(JwtManualGuard)
+  @Post('createClient')
+  async createClient(
+    @Body()
+    creds: {
+      name: string;
+      email: string;
+      password: string;
+      apiKey: string;
+      apiKeyExpiresAt: any;
+      roles: string[];
+      permissionMatrix: Record<string, any>;
+      usageCounters: Record<string, any>;
+    }
+  ) {
+    return this.gatewayService.createClient(creds);
   }
 
   @Post('ssologin')
@@ -26,6 +44,12 @@ export class GatewayController {
     return this.gatewayService.ssoUserLogin(creds);
   }
 
+  @Post('clientLogin')
+  async clientLogin(@Body() creds: { email: string; password: string }) {
+    return this.gatewayService.clientLogin(creds);
+  }
+
+  @UseGuards(JwtManualGuard)
   @Post('createSsoUser')
   async createSsoUser(
     @Body()
