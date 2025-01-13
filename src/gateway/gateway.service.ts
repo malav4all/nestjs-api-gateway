@@ -118,6 +118,28 @@ export class GatewayService {
     }
   }
 
+  async clientChangePassword(
+    creds: {
+      oldPassword: string;
+      newPassword: string;
+    },
+    id: any
+  ) {
+    try {
+      const serviceUrl = this.getServiceUrl('CLIENT-MICROSERVICE');
+      const response = await axios.patch(
+        `${serviceUrl}/client/change-password/${id}`,
+        creds
+      );
+      return response.data;
+    } catch (error) {
+      throw new HttpException(
+        error.response?.data || 'User microservice error',
+        error.response?.status || 500
+      );
+    }
+  }
+
   async findApiKeyUser(apiKey: string) {
     try {
       const serviceUrl = this.getServiceUrl('USER-MICROSERVICE');

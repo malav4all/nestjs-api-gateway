@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   // Request,
   UseGuards,
@@ -37,6 +38,15 @@ export class GatewayController {
     }
   ) {
     return this.gatewayService.createClient(creds);
+  }
+
+  @UseGuards(JwtManualGuard)
+  @Patch('clientChangePassword/:id')
+  async changePassword(
+    @Param('id') id: string,
+    @Body() creds: { oldPassword: string; newPassword: string }
+  ) {
+    return this.gatewayService.clientChangePassword(creds, id);
   }
 
   @Post('ssologin')
