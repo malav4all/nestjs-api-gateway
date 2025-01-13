@@ -142,7 +142,7 @@ export class GatewayService {
 
   async findApiKeyUser(apiKey: string) {
     try {
-      const serviceUrl = this.getServiceUrl('USER-MICROSERVICE');
+      const serviceUrl = this.getServiceUrl('CLIENT-MICROSERVICE');
       const response = await axios.get(
         `${serviceUrl}/client/find-by-api-key/${apiKey}`
       );
@@ -159,7 +159,7 @@ export class GatewayService {
     usageCounters: Record<string, number>,
     permissionMatrix: any
   ) {
-    const serviceUrl = this.getServiceUrl('USER-MICROSERVICE');
+    const serviceUrl = this.getServiceUrl('CLIENT-MICROSERVICE');
     const response = await axios.put(
       `${serviceUrl}/client/update-usage/${userId}`,
       { usageCounters, permissionMatrix }
@@ -186,18 +186,23 @@ export class GatewayService {
     }
   }
 
-  async getAllProducts() {
+  async getAllProducts(page, limit) {
     try {
       // If your user microservice is registered as "USER-SERVICE" (for example)
       const serviceUrl = this.getServiceUrl('PRODUCTS-MICROSERVICE');
 
       // e.g. calling GET /users
-      const response = await axios.get(`${serviceUrl}/products`);
+      const response = await axios.get(`${serviceUrl}/products`, {
+        params: {
+          page: page,
+          limit: limit,
+        },
+      });
       return response.data;
     } catch (error) {
       console.error('Error calling user service:', error.message);
       throw new HttpException(
-        error.response?.data || 'User service error',
+        error.response?.data || 'Product service error',
         error.response?.status || 500
       );
     }

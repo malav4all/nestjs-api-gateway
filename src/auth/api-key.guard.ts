@@ -1,4 +1,3 @@
-// src/auth/api-key.guard.ts
 import {
   Injectable,
   CanActivate,
@@ -15,90 +14,72 @@ export class ApiKeyGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req: Request = context.switchToHttp().getRequest();
-    console.log(req);
-    const apiKey = req.headers['x-api-key'] as string;
 
+    // Extract API key
+    const apiKey = req.headers['x-api-key'] as string;
     if (!apiKey) {
       throw new UnauthorizedException('Missing x-api-key header');
     }
 
-    // 1. Lookup user by API key
+    // 1. Validate API Key
     const user = await this.gatewayService.findApiKeyUser(apiKey);
     if (!user) {
       throw new UnauthorizedException('Invalid API key');
     }
 
-    // 2. Optional: Check if API key is expired
+    // 2. Check API Key Expiry
     if (user.apiKeyExpiresAt) {
       const expiryDate = new Date(user.apiKeyExpiresAt);
-      const currentDate = new Date();
-
-      console.log(`API Key Expiry: ${expiryDate}`);
-      console.log(`Current Time: ${currentDate}`);
-
-      if (expiryDate.getTime() < currentDate.getTime()) {
+      if (expiryDate.getTime() < Date.now()) {
         throw new UnauthorizedException('API key has expired');
       }
     }
 
-    // 3. Extract the resource from the path (e.g., "users")
+    // 3. Extract the resource
     const resource = this.extractResource(req.path, user.permissionMatrix);
     if (resource === 'unknown') {
       throw new ForbiddenException(`No permissions for resource ${req.path}`);
     }
 
-    // 4. Map the HTTP method to a domain-specific action (read/write/update/delete)
+    // 4. Map HTTP Method to Action
     const action = this.mapHttpToAction(req.method);
 
-    // 5. Check if the user has permission for the extracted resource and action
+    // 5. Check Permissions
     const resourcePerm = user.permissionMatrix[resource];
-    if (!resourcePerm) {
-      throw new ForbiddenException(`No permissions for resource ${resource}`);
-    }
-
-    const perm = resourcePerm[action];
-    if (!perm || !perm.allowed) {
+    if (!resourcePerm || !resourcePerm[action]?.allowed) {
       throw new ForbiddenException(`Not allowed to ${action} on ${resource}`);
     }
 
-    // 6. Optional: Check if the endpoint is in the allowed list for this action
+    // 6. Validate Endpoint
+    const perm = resourcePerm[action];
     if (perm.allowedEndpoints && perm.allowedEndpoints.length > 0) {
       const subPath = this.extractSubPath(req.path);
-      const match = perm.allowedEndpoints.some(
-        (endpoint) => endpoint === subPath
+      const isAllowed = perm.allowedEndpoints.some(
+        (endpoint) => endpoint.name === subPath && endpoint.allowed
       );
-      if (!match) {
+      if (!isAllowed) {
         throw new ForbiddenException(
           `Endpoint ${subPath} not allowed for ${action} on ${resource}`
         );
       }
     }
 
-    // // 7. Enforce usage limits if defined
+    // 7. Enforce Usage Limits
     if (perm.limit !== undefined) {
-      const usageKey: string = `${resource}.${action}`;
+      const usageKey = `${resource}.${action}`;
+      user.usageCounters = user.usageCounters || {};
 
-      // Ensure usageCounters is initialized
-      if (!user.usageCounters) {
-        user.usageCounters = {};
-      }
-
-      // Check if the limit is 0 and immediately reject
-      if (perm.limit === 0) {
-        throw new ForbiddenException(
-          `${action} is not allowed for ${resource}`
-        );
+      if (
+        perm.limit === 0 ||
+        (user.usageCounters[usageKey] || 0) >= perm.limit
+      ) {
+        throw new ForbiddenException(`${action} limit exceeded on ${resource}`);
       }
 
       // Increment usage counter
       user.usageCounters[usageKey] = (user.usageCounters[usageKey] || 0) + 1;
 
-      // Check if the usage limit is exceeded
-      if (user.usageCounters[usageKey] > perm.limit) {
-        throw new ForbiddenException(`${action} limit exceeded on ${resource}`);
-      }
-
-      // Save updated usageCounters and permissionMatrix
+      // Update user's usage counters and permission matrix
       await this.gatewayService.updateUserUsage(
         user._id,
         user.usageCounters,
@@ -106,7 +87,7 @@ export class ApiKeyGuard implements CanActivate {
       );
     }
 
-    // 8. Attach user to request (for downstream use)
+    // Attach user to the request
     (req as any).user = user;
 
     return true;
@@ -127,11 +108,11 @@ export class ApiKeyGuard implements CanActivate {
       case 'DELETE':
         return 'delete';
       default:
-        return 'read'; // Default to "read" for unhandled methods
+        return 'read'; // Default to "read"
     }
   }
 
-  // Extract the resource name from the path
+  // Extract resource from path
   private extractResource(
     fullPath: string,
     permissionMatrix: Record<string, any>
@@ -141,42 +122,46 @@ export class ApiKeyGuard implements CanActivate {
     if (parts[0] === 'gateway' && parts.length > 1) {
       const subPath = parts[1]; // e.g., "listUsers"
 
-      // Dynamically determine the resource from the permission matrix
+      // Check all resources and their allowed endpoints
       for (const [resource, actions] of Object.entries(permissionMatrix)) {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for (const [action, details] of Object.entries(actions) as any) {
-          if (details?.allowedEndpoints?.includes(subPath)) {
-            return resource; // Return the matched resource
+          if (
+            details?.allowedEndpoints?.some(
+              (endpoint: any) => endpoint.name === subPath
+            )
+          ) {
+            return resource;
           }
         }
       }
     }
 
-    return 'unknown'; // Return 'unknown' if no resource matches
+    return 'unknown'; // Default if no resource matches
   }
 
+  // Extract normalized sub-path for dynamic patterns
   private extractSubPath(fullPath: string): string {
-    const parts = fullPath.split('/').filter(Boolean); // e.g., ["gateway", "fetchById", "12345"]
+    const parts = fullPath.split('/').filter(Boolean); // e.g., ["gateway", "fetchById"]
 
     if (parts.length > 1) {
       const endpoint = parts[1];
 
-      // Define a mapping of dynamic patterns to their normalized keys
+      // Define dynamic patterns
       const dynamicPatterns = [
         { pattern: /^fetchById$/, normalized: 'fetchById' },
-        { pattern: /^getDetails$/, normalized: 'getDetails' }, // Add more dynamic patterns as needed
+        { pattern: /^getDetails$/, normalized: 'getDetails' },
       ];
 
-      // Match the current endpoint against the dynamic patterns
       const matchedPattern = dynamicPatterns.find((entry) =>
         endpoint.match(entry.pattern)
       );
 
       if (matchedPattern) {
-        return matchedPattern.normalized; // Return the normalized key for the dynamic endpoint
+        return matchedPattern.normalized;
       }
     }
 
-    return parts.slice(1).join('/') || ''; // Default behavior for other paths
+    return parts.slice(1).join('/') || '';
   }
 }

@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   // Request,
   UseGuards,
 } from '@nestjs/common';
@@ -76,8 +77,12 @@ export class GatewayController {
 
   @UseGuards(ApiKeyGuard)
   @Get('listProducts')
-  async getAllProducts() {
-    return this.gatewayService.getAllProducts();
+  async getAllProducts(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10'
+  ) {
+    console.log(page, limit);
+    return this.gatewayService.getAllProducts(page, limit);
   }
 
   @UseGuards(ApiKeyGuard)
