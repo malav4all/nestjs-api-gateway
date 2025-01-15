@@ -81,12 +81,11 @@ export class GatewayController {
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10'
   ) {
-    console.log(page, limit);
     return this.gatewayService.getAllProducts(page, limit);
   }
 
   @UseGuards(ApiKeyGuard)
-  @Post('createProduct')
+  @Post('createProducts')
   async createProduct(
     @Body()
     creds: {
