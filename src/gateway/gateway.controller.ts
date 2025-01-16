@@ -19,8 +19,11 @@ export class GatewayController {
 
   @UseGuards(JwtManualGuard)
   @Get('listClient')
-  async getAllUsers() {
-    return this.gatewayService.getAllClient();
+  async getAllClients(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10'
+  ) {
+    return this.gatewayService.getAllClient(page, limit);
   }
 
   @UseGuards(JwtManualGuard)

@@ -66,16 +66,20 @@ export class GatewayService {
     return `http://${host}:${port}`;
   }
 
-  async getAllClient() {
+  async getAllClient(page, limit) {
     try {
       // If your user microservice is registered as "USER-SERVICE" (for example)
       const serviceUrl = this.getServiceUrl('CLIENT-MICROSERVICE');
 
       // e.g. calling GET /users
-      const response = await axios.get(`${serviceUrl}/client`);
+      const response = await axios.get(`${serviceUrl}/client`, {
+        params: {
+          page: page,
+          limit: limit,
+        },
+      });
       return response.data;
     } catch (error) {
-      console.error('Error calling user service:', error.message);
       throw new HttpException(
         error.response?.data || 'User service error',
         error.response?.status || 500
@@ -191,7 +195,6 @@ export class GatewayService {
       // If your user microservice is registered as "USER-SERVICE" (for example)
       const serviceUrl = this.getServiceUrl('PRODUCTS-MICROSERVICE');
 
-      // e.g. calling GET /users
       const response = await axios.get(`${serviceUrl}/products`, {
         params: {
           page: page,
