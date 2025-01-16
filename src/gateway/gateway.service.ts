@@ -109,6 +109,19 @@ export class GatewayService {
     }
   }
 
+  async updateClient(id: string, creds: any) {
+    try {
+      const serviceUrl = this.getServiceUrl('CLIENT-MICROSERVICE');
+      const response = await axios.put(`${serviceUrl}/client/${id}`, creds);
+      return response.data;
+    } catch (error) {
+      throw new HttpException(
+        error.response?.data || 'Client microservice error',
+        error.response?.status || 500
+      );
+    }
+  }
+
   async clientLogin(creds: { email: string; password: string }) {
     try {
       const serviceUrl = this.getServiceUrl('CLIENT-MICROSERVICE');

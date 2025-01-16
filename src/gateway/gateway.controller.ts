@@ -45,6 +45,16 @@ export class GatewayController {
   }
 
   @UseGuards(JwtManualGuard)
+  @Post('updateClient')
+  async updateClient(
+    @Param('id') id: string,
+    @Body()
+    creds: any
+  ) {
+    return this.gatewayService.updateClient(id, creds);
+  }
+
+  @UseGuards(JwtManualGuard)
   @Patch('clientChangePassword/:id')
   async changePassword(
     @Param('id') id: string,
